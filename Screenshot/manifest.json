@@ -1,0 +1,10 @@
+{
+    "Name": "Screenshot",
+    "Author": "HyperDDR",
+    "Version": "1.0.0",
+    "Description": "view the whole level",
+    "UniqueID": "supeddr.Screenshot",
+    "EntryDll": "Screenshot.dll",
+    "MinimumApiVersion": "4.0.0",
+    "UpdateKeys": []
+  }
