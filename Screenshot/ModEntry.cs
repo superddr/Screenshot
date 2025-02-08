@@ -4,38 +4,67 @@ using StardewModdingAPI.Events;
 using StardewValley;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
-
-
 using StardewValley.Menus;
 
 namespace Screenshot
 {
+    public class ModConfig
+    {
+        public bool AutoScreenshotOnWarp { get; set; } = true;
+        public string ScreenshotHotkey { get; set; } = "F1";
+        public string ToggleAutoScreenshotHotkey { get; set; } = "F2";
+        public string[] AvailableKeys { get; set; } = Enum.GetValues(typeof(SButton)).Cast<SButton>().Select(b => b.ToString()).ToArray();
+        
+    }
+
     internal sealed class ModEntry : Mod
     {
+        private ModConfig Config;
+        
         public override void Entry(IModHelper helper)
         {
+            // 加载配置
+            Config = helper.ReadConfig<ModConfig>();
+
             helper.Events.Input.ButtonReleased += this.OnButtonReleased;
+            helper.Events.Player.Warped += this.OnWarped;
+        }
+
+        private void OnWarped(object? sender, WarpedEventArgs e)
+        {
+            if (!Context.IsWorldReady) return;
+            
+            // 检查配置是否启用了自动截图
+            if (Config.AutoScreenshotOnWarp && e.Player.IsLocalPlayer)
+            {
+                working = true;
+                Game1.activeClickableMenu = new OverlayMenu("Auto screenshot, Press " + Config.ToggleAutoScreenshotHotkey + " to disable");
+            }
         }
 
         private bool working = false;
         private void OnButtonReleased(object? sender, ButtonReleasedEventArgs e)
         {
             if (!Context.IsWorldReady)return;
-
-            if (e.Button == SButton.F1 || e.Button == SButton.Escape)
+        
+            if (e.Button.ToString() == Config.ScreenshotHotkey || e.Button == SButton.Escape)
             {
                 if(e.Button != SButton.Escape || working){
                     working = !working;
-                }else{
+                }else{ // Esc and not working
                     return;
                 }
 
                 if(working)
                 {
-                    Game1.activeClickableMenu = new OverlayMenu();
+                    Game1.activeClickableMenu = new OverlayMenu("Screenshot. Press " + Config.ScreenshotHotkey + " to close");
                 }else{
                     Game1.exitActiveMenu(); // 关闭菜单
                 }
+            }else if(e.Button.ToString() == Config.ToggleAutoScreenshotHotkey){
+                Config.AutoScreenshotOnWarp = !Config.AutoScreenshotOnWarp;
+                // 在屏幕上显示提示
+                Game1.addHUDMessage(new HUDMessage("Auto screenshot on warp: " + (Config.AutoScreenshotOnWarp ? "Enabled" : "Disabled"), 2));
             }
 
         }
@@ -47,9 +76,10 @@ namespace Screenshot
 public class OverlayMenu : IClickableMenu
 {
     private Texture2D? texture = null;
-
-    public OverlayMenu(): base(0, 0, Game1.viewport.Width, Game1.viewport.Height) // 覆盖整个屏幕
+    private string title;
+    public OverlayMenu(string title): base(0, 0, Game1.viewport.Width, Game1.viewport.Height) // 覆盖整个屏幕
     {
+        this.title = title;
         Game1.isTimePaused = true;
         Game1.game1.takeMapScreenshot(1, "screenshot",null);
     }
@@ -112,10 +142,12 @@ public class OverlayMenu : IClickableMenu
         Game1.spriteBatch.Draw(Game1.staminaRect, new Rectangle(0, 0, Game1.viewport.Width, Game1.viewport.Height), Color.Black);
         // 绘制缩放后的纹理
         Game1.spriteBatch.Draw(texture, offset, null, Color.White, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+        // 绘制标题
+        Game1.spriteBatch.DrawString(Game1.dialogueFont, title, new Vector2(10, 10), Color.White);
         // 绘制鼠标
         base.drawMouse(b);
     }
-
+    
     ~OverlayMenu(){
         texture?.Dispose();
         Game1.isTimePaused = false;
